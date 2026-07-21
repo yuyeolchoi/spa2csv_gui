@@ -5,7 +5,7 @@ from .parser import SpaParseError, parse_spa
 
 __version__ = "0.1.0"
 AUTHOR = "yuyeolchoi"
-GITHUB_URL = "https://github.com/yuyeolchoi/spa2csv-gui"
+GITHUB_URL = "https://github.com/yuyeolchoi/spa2csv_gui"
 
 __all__ = [
     "SpaParseError",
