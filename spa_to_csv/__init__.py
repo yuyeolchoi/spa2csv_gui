@@ -3,7 +3,7 @@
 from .converter import convert_spa_to_csv
 from .parser import SpaParseError, parse_spa
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 AUTHOR = "yuyeolchoi"
 GITHUB_URL = "https://github.com/yuyeolchoi/spa2csv_gui"
 

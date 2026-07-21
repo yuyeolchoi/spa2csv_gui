@@ -111,6 +111,8 @@ class SpaToCsvApp:
         self.load_folder_btn.pack(fill="x", pady=4)
         self.start_button = ttk.Button(controls, command=self.start)
         self.start_button.pack(fill="x", pady=(18, 4))
+        self.clear_button = ttk.Button(controls, command=self.clear_results)
+        self.clear_button.pack(fill="x", pady=(18, 4))
 
         ttk.Separator(frame).grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10, 5))
         ttk.Label(frame, textvariable=self.status).grid(row=3, column=0, columnspan=2, sticky="w")
@@ -185,6 +187,7 @@ class SpaToCsvApp:
         self.load_files_btn.config(text=self.tr("load_files"))
         self.load_folder_btn.config(text=self.tr("load_folder"))
         self.start_button.config(text=self.tr("start"))
+        self.clear_button.config(text=self.tr("clear_results"))
         key, kwargs = self._status
         self.status.set(self.tr(key, **kwargs))
 
@@ -225,6 +228,9 @@ class SpaToCsvApp:
             ]
             self._add(sorted(found))
 
+    def clear_results(self) -> None:
+        self.results.delete(0, tk.END)
+
     def start(self) -> None:
         if self.running:
             return
@@ -234,7 +240,6 @@ class SpaToCsvApp:
         self.running = True
         self._done = 0
         self._total = len(self.paths)
-        self.results.delete(0, tk.END)
         self.start_button.configure(state="disabled")
         threading.Thread(target=self._worker, args=(tuple(self.paths),), daemon=True).start()
         self.root.after(50, self._poll)
@@ -252,9 +257,9 @@ class SpaToCsvApp:
         self.events.put(("total", total))
         # Files convert independently, so run them on a small thread pool.
         with ThreadPoolExecutor(max_workers=worker_count(total)) as pool:
-            futures = [pool.submit(self._convert_one, path) for path in paths]
+            futures = {pool.submit(self._convert_one, path): path for path in paths}
             for future in as_completed(futures):
-                self.events.put(("result", future.result()))
+                self.events.put(("result", (futures[future], future.result())))
         self.events.put(("done", total))
 
     def _poll(self) -> None:
@@ -266,7 +271,16 @@ class SpaToCsvApp:
                     self._done = 0
                     self._set_status("status_progress", done=0, total=value)
                 elif kind == "result":
-                    self.results.insert(tk.END, value)
+                    path, text = value  # type: ignore[misc]
+                    # Move the finished file out of the source list into results.
+                    try:
+                        i = self.paths.index(path)
+                    except ValueError:
+                        i = None
+                    if i is not None:
+                        self.paths.pop(i)
+                        self.sources.delete(i)
+                    self.results.insert(tk.END, text)
                     self._done += 1
                     self._set_status("status_progress", done=self._done, total=self._total)
                 elif kind == "done":

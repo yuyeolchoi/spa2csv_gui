@@ -38,9 +38,13 @@ switch between English and Korean; the title, buttons, and status messages
 update instantly. `Options → About` shows the version, author, and GitHub link.
 
 Use `Load Files` to pick multiple SPA files, or `Load Folder` to add every SPA
-file in a folder, then press `Start`. The left list shows the source file names
-and the right list shows the finished CSV names (or a per-file failure reason).
+file in a folder, then press `Start`. As each file finishes it moves out of the
+left (source) list into the right (results) list, which shows the finished CSV
+name or a per-file failure reason. `Clear Results` empties the right list.
 Conversion runs on a thread pool, so large batches finish quickly.
+
+> For large batches, prefer `Load Folder`: the `Load Files` dialog is limited by
+> Windows to a few hundred files at once, while `Load Folder` has no such limit.
 
 ### In-situ series (`.srs`)
 
