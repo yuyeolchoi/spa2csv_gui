@@ -107,7 +107,11 @@ def parse_spa(file_path: str | Path) -> tuple[np.ndarray, np.ndarray, dict[str, 
     ).astype(np.float64)
     if not np.all(np.isfinite(intensities)):
         raise _fail(path, "강도 데이터에 유효하지 않은 값이 있습니다")
-    wavenumbers = np.linspace(first_x, last_x, point_count, dtype=np.float64)
+    # OMNIC constructs its ascending x-axis in single precision, so build that
+    # grid and reverse it to preserve the parser's descending-axis contract.
+    wavenumbers = np.linspace(
+        np.float32(last_x), np.float32(first_x), point_count, dtype=np.float32
+    )[::-1].astype(np.float64)
     meta = {
         "source": str(path),
         "point_count": point_count,
