@@ -8,3 +8,6 @@ __pycache__/
 build/
 dist/
 *.spec
+
+# Internal development notes (not for public repo)
+WORK_ORDER.md
