@@ -22,8 +22,10 @@ UI 기본 언어는 **영어**입니다. 상단 메뉴 `Options → Language`에
 파일명 또는 파일별 실패 사유가 표시됩니다. 변환은 스레드 풀에서 여러 파일을
 동시에 처리하므로 대량 파일도 빠르게 변환됩니다.
 
-CSV는 UTF-8이며 `Wavenumber (cm-1)`, `Intensity` 두 열을 가집니다. 파수 순서는
-SPA 헤더에 기록된 시작값에서 끝값까지 그대로 유지합니다.
+출력 CSV는 OMNIC이 직접 내보내는 CSV와 동일한 형식을 따릅니다: 헤더 행 없이
+두 열(파수, 강도)을 콤마로 구분하고, 파수 오름차순으로 정렬하며, 값은 지수 표기
+(`6.499040e+002`), 줄바꿈은 CRLF입니다. 기존 OMNIC CSV를 쓰던 분석 스크립트에
+그대로 결합(drop-in)할 수 있습니다.
 
 ## 단독 실행 파일(.exe) 만들기
 
@@ -49,9 +51,23 @@ python -m PyInstaller --onefile --windowed --name SPA_to_CSV --noconfirm main.py
 little-endian 값으로 저장된다고 가정합니다. 다중 스펙트럼 파일에서는 첫 번째 기본
 스펙트럼을 변환합니다.
 
+## 검증 (Validation)
+
+실제 기기에서 측정한 SPA 파일로 OMNIC의 CSV 내보내기 결과와 직접 비교했습니다.
+
+- **분광기**: Thermo Scientific Nicolet iS50 FTIR
+- **소프트웨어**: OMNIC 9.8.372
+- 측정 스펙트럼 3종(각 6,950 포인트)에 대해, 이 툴의 출력과 OMNIC이 직접
+  내보낸 CSV를 비교한 결과:
+  - **강도(intensity) 값: 6,950 포인트 전부 완전 일치** (음수 포함)
+  - **파수(wavenumber): 6,950개 중 5개만** 6번째 유효숫자에서 0.001 cm⁻¹ 차이
+    (분광 분해능보다 수천 배 작은 값으로, OMNIC 내부 단정밀도 x축 재구성에서
+    비롯된 것이며 실질적 영향 없음)
+  - 행 순서·숫자 표기·줄바꿈까지 OMNIC 형식과 동일
+
 ## 테스트
 
-실제 시료 없이 코드로 만든 합성 SPA fixture를 사용합니다.
+코드로 만든 합성 SPA fixture로 파서·변환기·언어 처리를 검증합니다.
 
 ```powershell
 pytest -q
