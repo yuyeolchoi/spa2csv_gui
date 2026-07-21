@@ -43,6 +43,24 @@ def worker_count(file_count: int) -> int:
 SPA_SUFFIXES = {".spa", ""}
 
 
+def find_spa_files(folder: Path) -> list[Path]:
+    """Recursively collect SPA files under ``folder``.
+
+    Walks subfolders so a parent that only contains per-series subfolders (each
+    holding OMNIC split output) can be loaded in one step. Only ``.spa`` and
+    extension-less files are returned; unreadable subfolders are skipped.
+    """
+
+    found: list[Path] = []
+    for root, _dirs, files in os.walk(folder):
+        root_path = Path(root)
+        for name in files:
+            path = root_path / name
+            if path.suffix.casefold() in SPA_SUFFIXES:
+                found.append(path)
+    return found
+
+
 def unique_spa_paths(current: Iterable[str | Path], additions: Iterable[str | Path]) -> list[Path]:
     """Return normalized, de-duplicated SPA paths, preserving input order.
 
@@ -221,12 +239,7 @@ class SpaToCsvApp:
     def load_folder(self) -> None:
         selected = filedialog.askdirectory(title=self.tr("dialog_folder_title"))
         if selected:
-            found = [
-                p
-                for p in Path(selected).iterdir()
-                if p.is_file() and p.suffix.casefold() in SPA_SUFFIXES
-            ]
-            self._add(sorted(found))
+            self._add(sorted(find_spa_files(Path(selected))))
 
     def clear_results(self) -> None:
         self.results.delete(0, tk.END)
