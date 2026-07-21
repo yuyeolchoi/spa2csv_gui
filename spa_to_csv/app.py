@@ -8,9 +8,11 @@ from pathlib import Path
 import queue
 import threading
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog, font as tkfont, ttk
 from typing import Iterable
+import webbrowser
 
+from . import AUTHOR, GITHUB_URL, __version__
 from .converter import convert_spa_to_csv
 from .i18n import DEFAULT_LANG, LANGUAGES, translate
 
@@ -106,7 +108,41 @@ class SpaToCsvApp:
                 label=label, value=code, variable=self.lang_var, command=self._on_language
             )
         options.add_cascade(label=self.tr("menu_language"), menu=language)
+        options.add_separator()
+        options.add_command(label=self.tr("menu_about"), command=self._show_about)
         self.menubar.add_cascade(label=self.tr("menu_options"), menu=options)
+
+    def _show_about(self) -> None:
+        dialog = tk.Toplevel(self.root)
+        dialog.title(self.tr("about_title"))
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+
+        body = ttk.Frame(dialog, padding=20)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=self.tr("title"), font=("", 12, "bold")).pack()
+        ttk.Label(body, text=self.tr("about_version", version=__version__)).pack(pady=(6, 0))
+        ttk.Label(body, text=self.tr("about_made_by", author=AUTHOR)).pack(pady=(6, 0))
+
+        link = ttk.Label(body, text=GITHUB_URL, foreground="#1a5fb4", cursor="hand2")
+        link.pack(pady=(6, 0))
+        link_font = tkfont.Font(font=link.cget("font"))
+        link_font.configure(underline=True)
+        link.configure(font=link_font)
+        link.bind("<Button-1>", lambda _event: webbrowser.open(GITHUB_URL))
+
+        ttk.Button(body, text=self.tr("about_close"), command=dialog.destroy).pack(pady=(16, 0))
+
+        dialog.update_idletasks()
+        self._center_over_root(dialog)
+        dialog.grab_set()
+        dialog.focus_set()
+
+    def _center_over_root(self, window: tk.Toplevel) -> None:
+        width, height = window.winfo_width(), window.winfo_height()
+        x = self.root.winfo_rootx() + (self.root.winfo_width() - width) // 2
+        y = self.root.winfo_rooty() + (self.root.winfo_height() - height) // 2
+        window.geometry(f"+{max(x, 0)}+{max(y, 0)}")
 
     def _on_language(self) -> None:
         self._lang = self.lang_var.get()

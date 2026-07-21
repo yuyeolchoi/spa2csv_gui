@@ -15,6 +15,7 @@ python main.py
 
 UI 기본 언어는 **영어**입니다. 상단 메뉴 `Options → Language`에서 English와
 한국어를 전환할 수 있으며, 창 제목·버튼·상태 메시지가 즉시 바뀝니다.
+`Options → About`에는 버전·제작자·GitHub 링크가 표시됩니다.
 
 `Load Files`로 여러 SPA 파일을 선택하거나 `Load Folder`로 한 폴더의 SPA 파일을
 추가한 뒤 `Start`를 누릅니다. 왼쪽에는 원본 파일명, 오른쪽에는 완성된 CSV
