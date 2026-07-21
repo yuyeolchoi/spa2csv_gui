@@ -10,4 +10,8 @@ dist/
 *.spec
 
 # Internal development notes (not for public repo)
-WORK_ORDER.md
+WORK_ORDER*.md
+
+# Validation data (researcher's real spectra — not for public repo)
+FDCA/
+Test/
