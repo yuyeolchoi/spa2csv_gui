@@ -13,42 +13,56 @@ class SpaParseError(ValueError):
     """Raised when an SPA file does not contain a readable spectrum."""
 
 
+# OMNIC lays out a directory of 16-byte entries. The entry count is a uint16 at
+# offset 294; the entries themselves start at 304. Within each entry: a uint8
+# "key" at +0, the referenced block position (uint32) at +2, and the block
+# length (uint32) at +6. Field offsets and key meanings follow the format
+# reverse-engineered by spectrochempy's read_omnic.
+NLINES_OFFSET = 294
 DIRECTORY_OFFSET = 304
 DIRECTORY_ENTRY_SIZE = 16
-DATA_ENTRY_TYPE = 2
-HEADER_ENTRY_TYPE = 3
+HEADER_ENTRY_KEY = 2  # block holds nx, firstx, lastx
+DATA_ENTRY_KEY = 3  # block holds the float32 intensity array
+
+# Field offsets inside the header block (key 2).
+HEADER_NX = 4
+HEADER_FIRSTX = 16
+HEADER_LASTX = 20
 
 
 def _fail(path: Path, reason: str) -> SpaParseError:
     return SpaParseError(f"{path.name}: {reason}")
 
 
-def _directory_entries(data: bytes, path: Path) -> list[tuple[int, int]]:
-    if len(data) <= DIRECTORY_OFFSET:
+def _directory_entries(data: bytes, path: Path) -> list[tuple[int, int, int]]:
+    """Return (key, block_position, block_length) for each directory entry."""
+
+    if len(data) < NLINES_OFFSET + 2:
         raise _fail(path, "파일이 SPA 디렉터리를 포함하기에 너무 짧습니다")
 
-    declared = data[30] if len(data) > 30 else 0
+    declared = struct.unpack_from("<H", data, NLINES_OFFSET)[0]
     available = (len(data) - DIRECTORY_OFFSET) // DIRECTORY_ENTRY_SIZE
-    if not declared:
+    if declared < 1:
         raise _fail(path, "디렉터리 항목 수가 0입니다")
     if declared > available:
         raise _fail(path, "디렉터리가 파일 범위를 벗어납니다")
 
-    entries: list[tuple[int, int]] = []
+    entries: list[tuple[int, int, int]] = []
     for index in range(declared):
         base = DIRECTORY_OFFSET + index * DIRECTORY_ENTRY_SIZE
-        entry_type = data[base]
-        block_offset = struct.unpack_from("<I", data, base + 2)[0]
-        if block_offset:
-            entries.append((entry_type, block_offset))
+        key = data[base]
+        block_position, block_length = struct.unpack_from("<II", data, base + 2)
+        if block_position:
+            entries.append((key, block_position, block_length))
     return entries
 
 
 def parse_spa(file_path: str | Path) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     """Return wavenumbers, intensities and basic metadata from an SPA file.
 
-    OMNIC stores block locations in 16-byte directory entries.  The spectrum
-    data block is type 2 and its matching header is type 3.
+    OMNIC records block locations in 16-byte directory entries. The header block
+    (key 2) carries the point count and wavenumber range; the intensity block
+    (key 3) holds a contiguous float32 array.
     """
 
     path = Path(file_path)
@@ -58,27 +72,33 @@ def parse_spa(file_path: str | Path) -> tuple[np.ndarray, np.ndarray, dict[str, 
         raise _fail(path, f"파일을 읽을 수 없습니다 ({exc})") from exc
 
     entries = _directory_entries(data, path)
-    data_offsets = [offset for kind, offset in entries if kind == DATA_ENTRY_TYPE]
-    header_offsets = [offset for kind, offset in entries if kind == HEADER_ENTRY_TYPE]
-    if not data_offsets:
-        raise _fail(path, "스펙트럼 데이터 블록(type 2)을 찾을 수 없습니다")
-    if not header_offsets:
-        raise _fail(path, "스펙트럼 헤더 블록(type 3)을 찾을 수 없습니다")
+    header_blocks = [(pos, length) for key, pos, length in entries if key == HEADER_ENTRY_KEY]
+    data_blocks = [(pos, length) for key, pos, length in entries if key == DATA_ENTRY_KEY]
+    if not header_blocks:
+        raise _fail(path, "스펙트럼 헤더 블록(key 2)을 찾을 수 없습니다")
+    if not data_blocks:
+        raise _fail(path, "스펙트럼 데이터 블록(key 3)을 찾을 수 없습니다")
 
-    # The first type-2/type-3 pair is OMNIC's primary spectrum. Other entries
-    # can describe history, interferograms, or derived spectra.
-    data_offset, header_offset = data_offsets[0], header_offsets[0]
-    if header_offset + 16 > len(data):
+    # The first key-2/key-3 pair is OMNIC's primary spectrum. Later entries can
+    # describe history, interferograms, or derived spectra.
+    header_offset = header_blocks[0][0]
+    data_offset, data_length = data_blocks[0]
+    if header_offset + HEADER_LASTX + 4 > len(data):
         raise _fail(path, "스펙트럼 헤더가 잘렸습니다")
 
-    point_count = struct.unpack_from("<I", data, header_offset + 4)[0]
-    first_x, last_x = struct.unpack_from("<ff", data, header_offset + 8)
+    point_count = struct.unpack_from("<I", data, header_offset + HEADER_NX)[0]
+    first_x = struct.unpack_from("<f", data, header_offset + HEADER_FIRSTX)[0]
+    last_x = struct.unpack_from("<f", data, header_offset + HEADER_LASTX)[0]
     if point_count < 1:
         raise _fail(path, "스펙트럼 포인트 수가 올바르지 않습니다")
     if not np.isfinite(first_x) or not np.isfinite(last_x):
         raise _fail(path, "파수 범위가 올바르지 않습니다")
 
+    # The directory records the block length; trust the header point count but
+    # never read past the recorded block or the file end.
     byte_count = point_count * 4
+    if data_length and byte_count > data_length:
+        raise _fail(path, "스펙트럼 데이터 길이가 헤더와 일치하지 않습니다")
     if data_offset + byte_count > len(data):
         raise _fail(path, "스펙트럼 데이터가 잘렸습니다")
 
