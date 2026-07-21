@@ -37,15 +37,24 @@ def worker_count(file_count: int) -> int:
     return max(1, min(file_count, cores * 2, MAX_WORKERS))
 
 
+# Accepted input extensions. OMNIC's series (.srs) "split" command writes each
+# spectrum as a standard SPA file but *without* an extension (e.g. ``sample0000``),
+# so an empty suffix is accepted alongside ``.spa``.
+SPA_SUFFIXES = {".spa", ""}
+
+
 def unique_spa_paths(current: Iterable[str | Path], additions: Iterable[str | Path]) -> list[Path]:
-    """Return normalized, de-duplicated SPA paths, preserving input order."""
+    """Return normalized, de-duplicated SPA paths, preserving input order.
+
+    Accepts ``.spa`` files and extension-less files (OMNIC series split output).
+    """
 
     result: list[Path] = []
     seen: set[str] = set()
     for raw in [*current, *additions]:
         path = Path(raw).expanduser().resolve()
         key = str(path).casefold()
-        if path.suffix.casefold() == ".spa" and key not in seen:
+        if path.suffix.casefold() in SPA_SUFFIXES and key not in seen:
             result.append(path)
             seen.add(key)
     return result
@@ -209,7 +218,12 @@ class SpaToCsvApp:
     def load_folder(self) -> None:
         selected = filedialog.askdirectory(title=self.tr("dialog_folder_title"))
         if selected:
-            self._add(sorted(Path(selected).glob("*.[sS][pP][aA]")))
+            found = [
+                p
+                for p in Path(selected).iterdir()
+                if p.is_file() and p.suffix.casefold() in SPA_SUFFIXES
+            ]
+            self._add(sorted(found))
 
     def start(self) -> None:
         if self.running:

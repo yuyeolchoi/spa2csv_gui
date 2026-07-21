@@ -42,6 +42,15 @@ file in a folder, then press `Start`. The left list shows the source file names
 and the right list shows the finished CSV names (or a per-file failure reason).
 Conversion runs on a thread pool, so large batches finish quickly.
 
+### In-situ series (`.srs`)
+
+For an in-situ series file (`.srs`), split it in OMNIC first (a single
+operation) — OMNIC writes each spectrum as an extension-less SPA file such as
+`sample0000`, `sample0001`, … in a folder. Then use `Load Folder` on that
+folder: the tool recognizes these extension-less files and converts them all
+at once. (The `.srs` container is not read directly, because OMNIC reprocesses
+the raw single-beam data into absorbance during the split.)
+
 The output CSV matches OMNIC's own CSV export exactly: no header row, two
 comma-separated columns (wavenumber, intensity), ascending wavenumber order,
 scientific-notation values (`6.499040e+002`), and CRLF line endings. It is a

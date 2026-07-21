@@ -11,6 +11,16 @@ def test_unique_spa_paths_filters_and_deduplicates(tmp_path: Path) -> None:
     assert result == [spa.resolve()]
 
 
+def test_unique_spa_paths_accepts_extensionless_split_files(tmp_path: Path) -> None:
+    # OMNIC series split writes extension-less SPA files (e.g. sample0000).
+    split0 = tmp_path / "CsFA_CO20000"
+    split1 = tmp_path / "CsFA_CO20001"
+    csv = tmp_path / "already.csv"  # outputs must not be re-ingested
+    srs = tmp_path / "series.srs"  # the series container itself is not a spectrum
+    result = unique_spa_paths([], [split0, split1, csv, srs])
+    assert result == [split0.resolve(), split1.resolve()]
+
+
 def test_worker_count_never_exceeds_files_or_cap() -> None:
     assert MAX_WORKERS == 4
     assert worker_count(0) == 1
