@@ -3,3 +3,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.csv
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec

@@ -20,6 +20,20 @@ python main.py
 CSV는 UTF-8이며 `Wavenumber (cm-1)`, `Intensity` 두 열을 가집니다. 파수 순서는
 SPA 헤더에 기록된 시작값에서 끝값까지 그대로 유지합니다.
 
+## 단독 실행 파일(.exe) 만들기
+
+cmd 창 없이 더블클릭으로 실행되는 단일 exe를 만들 수 있습니다. `build_exe.bat`을
+더블클릭하거나 아래 명령을 실행하세요.
+
+```powershell
+python -m pip install pyinstaller
+python -m PyInstaller --onefile --windowed --name SPA_to_CSV --noconfirm main.py
+```
+
+빌드가 끝나면 `dist\SPA_to_CSV.exe`가 생성됩니다. 이 파일만 있으면 Python 설치
+없이도 실행되며, `--windowed` 옵션 덕분에 콘솔 창이 뜨지 않습니다. exe를 바탕화면
+등으로 복사해 두고 더블클릭하면 됩니다.
+
 ## 지원하는 SPA 구조
 
 공개된 OMNIC SPA 리더 구현에서 널리 쓰이는 디렉터리 스캔 방식을 사용합니다.
