@@ -8,11 +8,16 @@ source file with the same base name, overwriting any existing CSV.
 
 ## Download (executable)
 
-To use it without installing Python, download the latest `SPA_to_CSV.exe` from
-the [Releases](../../releases) page and double-click it. It is a single
-executable that runs on Windows 7 and later, on both 32-bit and 64-bit
-systems (the release build is 32-bit for maximum compatibility, including
-older instrument-control PCs).
+To use it without installing Python, download the matching executable from the
+[Releases](../../releases) page and double-click it. Both builds run on
+Windows 7 and later.
+
+- **`SPA_to_CSV_x64.exe`** — 64-bit Windows
+- **`SPA_to_CSV_x86.exe`** — 32-bit Windows (also runs on 64-bit; pick this if
+  unsure, e.g. an older instrument-control PC)
+
+To check your system type: `Settings → System → About → System type` (or right-click
+`This PC → Properties`).
 
 > Because the executable is unsigned, Windows SmartScreen may warn you on first
 > launch. Click `More info → Run anyway`.
