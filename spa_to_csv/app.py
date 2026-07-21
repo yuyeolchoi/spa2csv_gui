@@ -12,6 +12,7 @@ from tkinter import filedialog, ttk
 from typing import Iterable
 
 from .converter import convert_spa_to_csv
+from .i18n import DEFAULT_LANG, LANGUAGES, translate
 
 
 def worker_count(file_count: int) -> int:
@@ -44,37 +45,83 @@ def unique_spa_paths(current: Iterable[str | Path], additions: Iterable[str | Pa
 class SpaToCsvApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("SPA to CSV Converter")
         self.root.minsize(760, 420)
         self.paths: list[Path] = []
         self.events: queue.Queue[tuple[str, object]] = queue.Queue()
         self.running = False
         self._done = 0
         self._total = 0
-        self.status = tk.StringVar(value="준비")
+        self._lang = DEFAULT_LANG
+        # Remember the current status as a (key, kwargs) pair so it can be
+        # re-rendered when the language changes.
+        self._status: tuple[str, dict[str, object]] = ("status_ready", {})
+        self.status = tk.StringVar()
+        self.lang_var = tk.StringVar(value=self._lang)
         self._build()
+        self._retranslate()
+
+    def tr(self, key: str, **kwargs: object) -> str:
+        return translate(self._lang, key, **kwargs)
+
+    def _set_status(self, key: str, **kwargs: object) -> None:
+        self._status = (key, kwargs)
+        self.status.set(self.tr(key, **kwargs))
 
     def _build(self) -> None:
+        self.menubar = tk.Menu(self.root)
+        self.root.config(menu=self.menubar)
+        self._build_menu()
+
         frame = ttk.Frame(self.root, padding=12)
         frame.pack(fill="both", expand=True)
         frame.columnconfigure(0, weight=1)
         frame.columnconfigure(2, weight=1)
         frame.rowconfigure(1, weight=1)
 
-        ttk.Label(frame, text="SPA 파일 목록").grid(row=0, column=0, sticky="w")
-        ttk.Label(frame, text="CSV 결과 목록").grid(row=0, column=2, sticky="w")
+        self.source_label = ttk.Label(frame)
+        self.source_label.grid(row=0, column=0, sticky="w")
+        self.result_label = ttk.Label(frame)
+        self.result_label.grid(row=0, column=2, sticky="w")
         self.sources = self._list_panel(frame, 0)
         self.results = self._list_panel(frame, 2)
 
         controls = ttk.Frame(frame, padding=(14, 25))
         controls.grid(row=1, column=1, sticky="n")
-        ttk.Button(controls, text="파일 로드", command=self.load_files).pack(fill="x", pady=4)
-        ttk.Button(controls, text="폴더 로드", command=self.load_folder).pack(fill="x", pady=4)
-        self.start_button = ttk.Button(controls, text="작업 시작", command=self.start)
+        self.load_files_btn = ttk.Button(controls, command=self.load_files)
+        self.load_files_btn.pack(fill="x", pady=4)
+        self.load_folder_btn = ttk.Button(controls, command=self.load_folder)
+        self.load_folder_btn.pack(fill="x", pady=4)
+        self.start_button = ttk.Button(controls, command=self.start)
         self.start_button.pack(fill="x", pady=(18, 4))
 
         ttk.Separator(frame).grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10, 5))
         ttk.Label(frame, textvariable=self.status).grid(row=3, column=0, columnspan=3, sticky="w")
+
+    def _build_menu(self) -> None:
+        self.menubar.delete(0, "end")
+        options = tk.Menu(self.menubar, tearoff=0)
+        language = tk.Menu(options, tearoff=0)
+        for label, code in LANGUAGES:
+            language.add_radiobutton(
+                label=label, value=code, variable=self.lang_var, command=self._on_language
+            )
+        options.add_cascade(label=self.tr("menu_language"), menu=language)
+        self.menubar.add_cascade(label=self.tr("menu_options"), menu=options)
+
+    def _on_language(self) -> None:
+        self._lang = self.lang_var.get()
+        self._retranslate()
+
+    def _retranslate(self) -> None:
+        self.root.title(self.tr("title"))
+        self._build_menu()
+        self.source_label.config(text=self.tr("source_label"))
+        self.result_label.config(text=self.tr("result_label"))
+        self.load_files_btn.config(text=self.tr("load_files"))
+        self.load_folder_btn.config(text=self.tr("load_folder"))
+        self.start_button.config(text=self.tr("start"))
+        key, kwargs = self._status
+        self.status.set(self.tr(key, **kwargs))
 
     @staticmethod
     def _list_panel(parent: ttk.Frame, column: int) -> tk.Listbox:
@@ -94,22 +141,25 @@ class SpaToCsvApp:
         self.sources.delete(0, tk.END)
         for path in self.paths:
             self.sources.insert(tk.END, path.name)
-        self.status.set(f"{len(self.paths)}개 파일 로드됨")
+        self._set_status("status_loaded", n=len(self.paths))
 
     def load_files(self) -> None:
         selected = filedialog.askopenfilenames(
-            title="SPA 파일 선택", filetypes=[("OMNIC SPA", "*.spa"), ("모든 파일", "*.*")]
+            title=self.tr("dialog_files_title"),
+            filetypes=[(self.tr("filetype_spa"), "*.spa"), (self.tr("filetype_all"), "*.*")],
         )
         self._add(selected)
 
     def load_folder(self) -> None:
-        selected = filedialog.askdirectory(title="SPA 폴더 선택")
+        selected = filedialog.askdirectory(title=self.tr("dialog_folder_title"))
         if selected:
             self._add(sorted(Path(selected).glob("*.[sS][pP][aA]")))
 
     def start(self) -> None:
-        if self.running or not self.paths:
-            self.status.set("변환할 SPA 파일을 먼저 로드하세요" if not self.paths else self.status.get())
+        if self.running:
+            return
+        if not self.paths:
+            self._set_status("status_no_files")
             return
         self.running = True
         self._done = 0
@@ -119,14 +169,13 @@ class SpaToCsvApp:
         threading.Thread(target=self._worker, args=(tuple(self.paths),), daemon=True).start()
         self.root.after(50, self._poll)
 
-    @staticmethod
-    def _convert_one(path: Path) -> str:
+    def _convert_one(self, path: Path) -> str:
         """Convert one file, returning the display text (never raises)."""
 
         try:
             return convert_spa_to_csv(path).name
         except Exception as exc:  # one malformed file must not stop the batch
-            return f"[실패] {path.name}: {exc}"
+            return f"{self.tr('fail_prefix')} {path.name}: {exc}"
 
     def _worker(self, paths: tuple[Path, ...]) -> None:
         total = len(paths)
@@ -145,15 +194,15 @@ class SpaToCsvApp:
                 if kind == "total":
                     self._total = value  # type: ignore[assignment]
                     self._done = 0
-                    self.status.set(f"0/{value} 처리됨")
+                    self._set_status("status_progress", done=0, total=value)
                 elif kind == "result":
                     self.results.insert(tk.END, value)
                     self._done += 1
-                    self.status.set(f"{self._done}/{self._total} 처리됨")
+                    self._set_status("status_progress", done=self._done, total=self._total)
                 elif kind == "done":
                     self.running = False
                     self.start_button.configure(state="normal")
-                    self.status.set(f"완료: {value}개 처리")
+                    self._set_status("status_done", n=value)
         except queue.Empty:
             pass
         if self.running:
