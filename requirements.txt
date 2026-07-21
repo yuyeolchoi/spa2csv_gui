@@ -1,2 +1,5 @@
+# Runtime dependency
 numpy>=1.24
+
+# For running the test suite only (not needed to use the app)
 pytest>=7.0
