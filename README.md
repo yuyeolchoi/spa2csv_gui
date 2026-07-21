@@ -23,10 +23,12 @@ SPA 헤더에 기록된 시작값에서 끝값까지 그대로 유지합니다.
 ## 지원하는 SPA 구조
 
 공개된 OMNIC SPA 리더 구현에서 널리 쓰이는 디렉터리 스캔 방식을 사용합니다.
-바이트 30의 항목 수와 바이트 304부터 시작하는 16바이트 디렉터리를 읽고, type 2
-데이터 블록과 type 3 헤더 블록을 사용합니다. 헤더의 `+4`, `+8`, `+12`에는 각각
-포인트 수, 시작 파수, 끝 파수가 little-endian 값으로 저장된다고 가정합니다. 다중
-스펙트럼 파일에서는 첫 번째 기본 스펙트럼을 변환합니다.
+바이트 294의 uint16 항목 수와 바이트 304부터 시작하는 16바이트 디렉터리를 읽습니다.
+각 디렉터리 항목은 `+0`에 key(uint8), `+2`에 블록 위치(uint32), `+6`에 블록
+길이(uint32)를 가집니다. **key 2는 헤더 블록**, **key 3은 float32 강도 데이터
+블록**입니다. 헤더의 `+4`, `+16`, `+20`에는 각각 포인트 수, 시작 파수, 끝 파수가
+little-endian 값으로 저장된다고 가정합니다. 다중 스펙트럼 파일에서는 첫 번째 기본
+스펙트럼을 변환합니다.
 
 ## 테스트
 
@@ -35,3 +37,19 @@ SPA 헤더에 기록된 시작값에서 끝값까지 그대로 유지합니다.
 ```powershell
 pytest -q
 ```
+
+## 라이선스
+
+이 프로젝트는 [MIT License](LICENSE)로 배포됩니다.
+
+## 감사의 말 (Acknowledgment)
+
+SPA 바이너리 포맷의 바이트 오프셋 정보는 아래 오픈소스 프로젝트의 포맷 문서에서
+파생하여 상호 검증했습니다. 두 프로젝트의 소스 코드는 복사하지 않았습니다.
+
+- [spectrochempy](https://github.com/spectrochempy/spectrochempy) (`read_omnic`, CeCILL-B) — OMNIC SPA 디렉터리/헤더 오프셋 문서
+- [ne0dim/spa2csv](https://github.com/ne0dim/spa2csv) (GPL-3.0) — 강도 데이터 블록 식별 확인
+
+SPA binary format offsets were derived from the file-format documentation in
+these projects and cross-checked against each other. No source code from either
+project was copied.
