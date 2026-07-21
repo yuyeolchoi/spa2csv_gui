@@ -17,17 +17,24 @@ from .converter import convert_spa_to_csv
 from .i18n import DEFAULT_LANG, LANGUAGES, translate
 
 
+# Upper bound on conversion threads. Kept low on purpose: the tool often runs
+# on the same PC as the spectrometer's acquisition software, so it should not
+# saturate the CPU. 4 threads (≈2 cores) is plenty for I/O-bound conversion.
+MAX_WORKERS = 4
+
+
 def worker_count(file_count: int) -> int:
     """Pick a thread-pool size for converting ``file_count`` files.
 
     Conversion is I/O bound (read SPA, write CSV), so a few workers per core
-    helps, but never spawn more threads than there are files.
+    helps, but never spawn more threads than there are files, and never exceed
+    ``MAX_WORKERS`` so the acquisition PC stays responsive.
     """
 
     if file_count <= 1:
         return 1
     cores = os.cpu_count() or 4
-    return max(1, min(file_count, cores * 2, 16))
+    return max(1, min(file_count, cores * 2, MAX_WORKERS))
 
 
 def unique_spa_paths(current: Iterable[str | Path], additions: Iterable[str | Path]) -> list[Path]:
