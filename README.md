@@ -43,8 +43,14 @@ left (source) list into the right (results) list, which shows the finished CSV
 name or a per-file failure reason. `Clear Results` empties the right list.
 Conversion runs on a thread pool, so large batches finish quickly.
 
+`Load Folder` scans subfolders too, so pointing it at a parent that holds one
+subfolder per series (each with OMNIC split output) loads every spectrum in one
+step.
+
 > For large batches, prefer `Load Folder`: the `Load Files` dialog is limited by
 > Windows to a few hundred files at once, while `Load Folder` has no such limit.
+> Already-converted `.csv` files in the folders are ignored, so re-loading a
+> folder never re-ingests previous output.
 
 ### In-situ series (`.srs`)
 
