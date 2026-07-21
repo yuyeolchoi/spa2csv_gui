@@ -97,7 +97,20 @@ class SpaToCsvApp:
         self.start_button.pack(fill="x", pady=(18, 4))
 
         ttk.Separator(frame).grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10, 5))
-        ttk.Label(frame, textvariable=self.status).grid(row=3, column=0, columnspan=3, sticky="w")
+        ttk.Label(frame, textvariable=self.status).grid(row=3, column=0, columnspan=2, sticky="w")
+
+        # Subtle maker watermark in the bottom-right corner; click opens GitHub.
+        watermark = ttk.Label(
+            frame,
+            text=f"{AUTHOR} · v{__version__}",
+            foreground="#9a9a9a",
+            cursor="hand2",
+        )
+        watermark.grid(row=3, column=2, sticky="e")
+        wm_font = tkfont.Font(font=watermark.cget("font"))
+        wm_font.configure(size=max(wm_font.cget("size") - 2, 7))
+        watermark.configure(font=wm_font)
+        watermark.bind("<Button-1>", lambda _event: webbrowser.open(GITHUB_URL))
 
     def _build_menu(self) -> None:
         self.menubar.delete(0, "end")
