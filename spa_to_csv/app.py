@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 from pathlib import Path
 import queue
 import threading
@@ -10,6 +12,19 @@ from tkinter import filedialog, ttk
 from typing import Iterable
 
 from .converter import convert_spa_to_csv
+
+
+def worker_count(file_count: int) -> int:
+    """Pick a thread-pool size for converting ``file_count`` files.
+
+    Conversion is I/O bound (read SPA, write CSV), so a few workers per core
+    helps, but never spawn more threads than there are files.
+    """
+
+    if file_count <= 1:
+        return 1
+    cores = os.cpu_count() or 4
+    return max(1, min(file_count, cores * 2, 16))
 
 
 def unique_spa_paths(current: Iterable[str | Path], additions: Iterable[str | Path]) -> list[Path]:
@@ -34,6 +49,8 @@ class SpaToCsvApp:
         self.paths: list[Path] = []
         self.events: queue.Queue[tuple[str, object]] = queue.Queue()
         self.running = False
+        self._done = 0
+        self._total = 0
         self.status = tk.StringVar(value="준비")
         self._build()
 
@@ -95,31 +112,44 @@ class SpaToCsvApp:
             self.status.set("변환할 SPA 파일을 먼저 로드하세요" if not self.paths else self.status.get())
             return
         self.running = True
+        self._done = 0
+        self._total = len(self.paths)
         self.results.delete(0, tk.END)
         self.start_button.configure(state="disabled")
         threading.Thread(target=self._worker, args=(tuple(self.paths),), daemon=True).start()
         self.root.after(50, self._poll)
 
+    @staticmethod
+    def _convert_one(path: Path) -> str:
+        """Convert one file, returning the display text (never raises)."""
+
+        try:
+            return convert_spa_to_csv(path).name
+        except Exception as exc:  # one malformed file must not stop the batch
+            return f"[실패] {path.name}: {exc}"
+
     def _worker(self, paths: tuple[Path, ...]) -> None:
         total = len(paths)
-        for index, path in enumerate(paths, 1):
-            try:
-                output = convert_spa_to_csv(path)
-                self.events.put(("result", output.name))
-            except Exception as exc:  # one malformed file must not stop the batch
-                self.events.put(("result", f"[실패] {path.name}: {exc}"))
-            self.events.put(("progress", (index, total)))
+        self.events.put(("total", total))
+        # Files convert independently, so run them on a small thread pool.
+        with ThreadPoolExecutor(max_workers=worker_count(total)) as pool:
+            futures = [pool.submit(self._convert_one, path) for path in paths]
+            for future in as_completed(futures):
+                self.events.put(("result", future.result()))
         self.events.put(("done", total))
 
     def _poll(self) -> None:
         try:
             while True:
                 kind, value = self.events.get_nowait()
-                if kind == "result":
+                if kind == "total":
+                    self._total = value  # type: ignore[assignment]
+                    self._done = 0
+                    self.status.set(f"0/{value} 처리됨")
+                elif kind == "result":
                     self.results.insert(tk.END, value)
-                elif kind == "progress":
-                    current, total = value  # type: ignore[misc]
-                    self.status.set(f"{current}/{total} 처리됨")
+                    self._done += 1
+                    self.status.set(f"{self._done}/{self._total} 처리됨")
                 elif kind == "done":
                     self.running = False
                     self.start_button.configure(state="normal")
