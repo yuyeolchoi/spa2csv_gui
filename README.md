@@ -6,6 +6,10 @@ A Python/tkinter desktop tool that batch-converts Thermo OMNIC `.spa` FT-IR
 spectra to CSV without needing OMNIC installed. Each CSV is written next to its
 source file with the same base name, overwriting any existing CSV.
 
+> **▶ Windows users:** a ready-to-run `.exe` is available on the
+> [**Releases**](../../releases) page — no Python installation required. Just
+> download and double-click.
+
 ## Download (executable)
 
 To use it without installing Python, download the matching executable from the
