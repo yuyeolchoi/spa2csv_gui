@@ -111,6 +111,12 @@ little-endian 값으로 저장된다고 가정합니다. 다중 스펙트럼 파
 pytest -q
 ```
 
+## 작성 방식 (Authorship)
+
+이 저장소의 코드는 저자의 설계와 요구사항을 바탕으로 [Claude Code](https://claude.com/claude-code)
+(Anthropic의 코딩 에이전트)로 작성했습니다. 동작 방식과 OMNIC 호환 출력 형식은 저자가
+정의했고, 실제 장비 파일로 검증(위 검증 절 참고)하며 프로젝트를 유지보수하고 있습니다.
+
 ## 라이선스
 
 이 프로젝트는 [MIT License](LICENSE)로 배포됩니다.

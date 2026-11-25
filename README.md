@@ -119,6 +119,13 @@ language handling.
 pytest -q
 ```
 
+## Authorship
+
+The code in this repository was written with [Claude Code](https://claude.com/claude-code)
+(Anthropic's coding agent) from the author's specification. The author defined
+the behaviour and the OMNIC-compatible output format, validated the converter
+against real instrument files (see Validation above), and maintains the project.
+
 ## License
 
 This project is released under the [MIT License](LICENSE).
